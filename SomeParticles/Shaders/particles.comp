@@ -114,6 +114,10 @@ void main()
     {
         pos.xyz = vec3(rnd(seed), rnd(seed), rnd(seed));
         pos.xyz = (pos.xyz - 0.5) * 2.0;
+
+        ParticleBuffer[particleIndex] = pos;
+
+        return;
     }
 
     float nx = sin(attractors.x * pos.y) + attractors.z * cos(attractors.x * pos.x);
@@ -127,6 +131,10 @@ void main()
     if (dot(pos.xyz, pos.xyz) > 10)
     {
         pos.xyz = vec3(0.0);
+
+        ParticleBuffer[particleIndex] = pos;
+
+        return;
     }
 
     ParticleBuffer[particleIndex] = pos;
