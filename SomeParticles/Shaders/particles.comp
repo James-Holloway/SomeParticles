@@ -1,0 +1,135 @@
+#version 450
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_NV_shader_atomic_int64 : require
+
+// Packing: R21 G22 B21 (high to low)
+const vec3 packedMax = vec3((1 << 21) - 1, (1 << 22) - 1, (1 << 21) - 1);
+const uvec3 packingOffsets = uvec3(21 + 22, 21, 0);
+const uvec3 packingMasks = uvec3(0x1FFFFF, 0x3FFFFF, 0x1FFFFF);
+// Empirical maximum after summing all particle onto a pixel
+uniform float eMax;
+
+const float PI = 3.14159265;
+const float TAU = 6.2831853;
+
+uniform float Time;
+uniform int Seed;
+uniform mat4 MVP;
+uniform ivec2 RenderTextureDimensions;
+
+uniform vec4 attractors;
+
+layout(std430, binding = 0) restrict writeonly buffer PixelBufferSSBO
+{
+    int64_t PixelBuffer[];
+};
+
+layout(std430, binding = 1) restrict buffer ParticleBufferSSBO
+{
+    vec4 ParticleBuffer[];
+};
+
+void storeColor(vec3 worldPosition, vec3 color)
+{
+    vec4 clipSpacePosition = MVP * vec4(worldPosition, 1.0);
+
+    // Frustum cull before perspective divide by checking of any of xyz are outside [-w, w].
+    if (any(greaterThan(abs(clipSpacePosition.xyz), vec3(abs(clipSpacePosition.w)))))
+    {
+        return;
+    }
+
+    vec3 ndcPosition = clipSpacePosition.xyz / clipSpacePosition.w;
+    vec3 unscaledWindowCoords = 0.5 * ndcPosition + vec3(0.5);
+
+    vec3 windowCoords = vec3(RenderTextureDimensions * unscaledWindowCoords.xy, unscaledWindowCoords.z);
+
+    // Account for pixel centers being halfway between integers.
+    ivec2 pixelCoord = clamp(ivec2(round(windowCoords.xy - vec2(0.5))), ivec2(0), RenderTextureDimensions - ivec2(1));
+    int pixelIndex = (pixelCoord.y * RenderTextureDimensions.x) + pixelCoord.x;
+
+    // Prevent negative values
+    color = max(color, vec3(0.0));
+
+    uvec3 uintRGB = uvec3(color * (packedMax / eMax));
+    uint64_t packedRGB = (uint64_t(uintRGB.r) << packingOffsets.r) | (uint64_t(uintRGB.g) << packingOffsets.g) | (uint64_t(uintRGB.b) << packingOffsets.b);
+
+    // Store the value
+    atomicAdd(PixelBuffer[pixelIndex], int64_t(packedRGB));
+}
+
+// Generate a random unsigned int from two unsigned int values, using 16 pairs
+// of rounds of the Tiny Encryption Algorithm. See Zafar, Olano, and Curtis,
+// "GPU Random Numbers via the Tiny Encryption Algorithm"
+uint tea(uint val0, uint val1)
+{
+    uint v0 = val0;
+    uint v1 = val1;
+    uint s0 = 0;
+
+    for (uint n = 0; n < 16; n++)
+    {
+        s0 += 0x9e3779b9;
+        v0 += ((v1 << 4) + 0xa341316c) ^ (v1 + s0) ^ ((v1 >> 5) + 0xc8013ea4);
+        v1 += ((v0 << 4) + 0xad90777d) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7e95761e);
+    }
+
+    return v0;
+}
+
+// Generate a random unsigned int in [0,2^24) given the previous RNG state
+// using the Numerical Recipes linear congruential generator
+uint lcg(inout uint prev)
+{
+    uint LCG_A = 1664525u;
+    uint LCG_C = 1013904223u;
+    prev       = (LCG_A * prev + LCG_C);
+    return prev & 0x00FFFFFFu;
+}
+
+// Generate a random float in [0,1] given the previous RNG state
+float rnd(inout uint prev)
+{
+    return (float(lcg(prev)) / float(0x01000000));
+}
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+void main()
+{
+    // Current particle
+    const uint globalIndex = gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y + gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    const uint particleIndex = (globalIndex * gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z) + gl_LocalInvocationIndex;
+    const uint particleCount = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y * gl_NumWorkGroups.z;
+    if (particleIndex >= particleCount)
+    {
+        return;
+    }
+
+    // Seed
+    uint seed = tea(particleIndex, Seed);
+
+    vec4 pos = ParticleBuffer[particleIndex];
+
+    if (pos.xyz == vec3(0.0))
+    {
+        pos.xyz = vec3(rnd(seed), rnd(seed), rnd(seed));
+        pos.xyz = (pos.xyz - 0.5) * 2.0;
+    }
+
+    float nx = sin(attractors.x * pos.y) + attractors.z * cos(attractors.x * pos.x);
+    float ny = sin(attractors.y * pos.x) + attractors.w * cos(attractors.y * pos.y);
+    float nz = sin(attractors.y * pos.x) + attractors.z * cos(attractors.y * pos.z);
+    pos.x = nx;
+    pos.y = ny;
+    pos.z = nz;
+
+    // When infinity, reset to origin
+    if (dot(pos.xyz, pos.xyz) > 10)
+    {
+        pos.xyz = vec3(0.0);
+    }
+
+    ParticleBuffer[particleIndex] = pos;
+
+    storeColor(pos.xyz, vec3(1.0, 1.0, 1.0));
+}
