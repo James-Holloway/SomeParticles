@@ -60,8 +60,9 @@ static std::vector<glm::vec4> attractorPresets{
     {-1.7f, 1.7f, 0.6f, 1.2f},
     {-1.7f, 1.3f, 0.1f, 1.3f},
     {-1.8f, -2.0f, -0.5f, -0.9f},
-
 };
+
+static bool showUI = true;
 
 static void clearPixelSSBO()
 {
@@ -243,6 +244,11 @@ static void appRender()
         }
         eyePos *= distance;
         recreateMVP(particleSize.x, particleSize.y);
+    }
+
+    if (!showUI)
+    {
+        return;
     }
 
     ImGui::SetNextWindowSize(ImVec2(340, 340), ImGuiCond_Once);
@@ -451,6 +457,17 @@ static void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && altPressed)
     {
         glfwSetWindowShouldClose(window, true);
+    }
+
+    static bool f1PreviouslyPressed = false;
+    if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !f1PreviouslyPressed)
+    {
+        showUI = !showUI;
+        f1PreviouslyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_RELEASE)
+    {
+        f1PreviouslyPressed = false;
     }
 }
 
