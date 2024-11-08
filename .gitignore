@@ -4,6 +4,9 @@ cmake-build*/
 imgui.ini
 .idea/
 
+# Embedded files
+SomeParticles/Embed/*
+
 # Asset files
 Assets/*
 *.spv

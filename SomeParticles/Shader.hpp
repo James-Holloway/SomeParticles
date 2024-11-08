@@ -22,9 +22,9 @@ class Shader
 {
 public:
     explicit Shader(const std::string &shaderName, ShaderType shaderType);
+    explicit Shader(ShaderType shaderType, const std::string &shaderString);
     ~Shader();
-
-    std::string ShaderName;
+    
     unsigned int GLShader = 0;
     ShaderType ShaderType;
 

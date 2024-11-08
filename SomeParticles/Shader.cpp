@@ -51,7 +51,7 @@ std::optional<std::string> GetPathFromShaderName(const std::string &shaderName)
     return {};
 }
 
-Shader::Shader(const std::string &shaderName, ::ShaderType shaderType) : ShaderName(shaderName), ShaderType(shaderType)
+Shader::Shader(const std::string &shaderName, const ::ShaderType shaderType) : ShaderType(shaderType)
 {
     auto shaderPath = GetPathFromShaderName(shaderName);
     if (!shaderPath.has_value())
@@ -85,6 +85,24 @@ Shader::Shader(const std::string &shaderName, ::ShaderType shaderType) : ShaderN
         char infoLog[512];
         glGetShaderInfoLog(GLShader, 512, nullptr, infoLog);
         throw std::runtime_error("Failed to compile shader \"" + shaderName + "\": " + infoLog);
+    }
+}
+
+Shader::Shader(const ::ShaderType shaderType, const std::string &shaderString) : ShaderType(shaderType)
+{
+    GLShader = glCreateShader(GetGLShaderType(shaderType));
+
+    const char *shaderSourcePointer = shaderString.c_str();
+    glShaderSource(GLShader, 1, &shaderSourcePointer, nullptr);
+    glCompileShader(GLShader);
+
+    int success;
+    glGetShaderiv(GLShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        char infoLog[512];
+        glGetShaderInfoLog(GLShader, 512, nullptr, infoLog);
+        throw std::runtime_error("Failed to compile shader source \"" + shaderString + "\": " + infoLog);
     }
 }
 

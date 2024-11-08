@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <random>
@@ -12,6 +13,20 @@
 #define INITIAL_WIDTH 1600
 #define INITIAL_HEIGHT 900
 #define VSYNC
+#ifdef NO_VSYNC
+#undef VSYNC
+#endif
+
+#ifdef EMBEDDED_SHADERS
+extern "C" const char output_vert[];
+extern "C" const size_t output_vert_size;
+
+extern "C" const char output_frag[];
+extern "C" const size_t output_frag_size;
+
+extern "C" const char particles_comp[];
+extern "C" const size_t particles_comp_size;
+#endif
 
 static float deltaTime = 0.0f;
 
@@ -88,12 +103,21 @@ static void reloadShaders()
 {
     try
     {
+#ifdef EMBEDDED_SHADERS
+        auto particles = std::make_shared<Shader>(ShaderType::Compute, std::string(particles_comp, particles_comp_size));
+        particlesProgram = std::make_shared<ShaderProgram>(particles);
+
+        auto outputVert = std::make_shared<Shader>(ShaderType::Vertex, std::string(output_vert, output_vert_size));
+        auto outputFrag = std::make_shared<Shader>(ShaderType::Fragment, std::string(output_frag, output_frag_size));
+        outputProgram = std::make_shared<ShaderProgram>(outputVert, outputFrag);
+#else
         auto particles = std::make_shared<Shader>("particles.comp", ShaderType::Compute);
         particlesProgram = std::make_shared<ShaderProgram>(particles);
 
         auto outputVert = std::make_shared<Shader>("output.vert", ShaderType::Vertex);
         auto outputFrag = std::make_shared<Shader>("output.frag", ShaderType::Fragment);
         outputProgram = std::make_shared<ShaderProgram>(outputVert, outputFrag);
+#endif
     }
     catch (const std::exception &e)
     {
@@ -224,11 +248,13 @@ static void appRender()
     ImGui::SetNextWindowSize(ImVec2(340, 340), ImGuiCond_Once);
     if (ImGui::Begin("Settings"))
     {
+#ifndef EMBEDDED_SHADERS
         if (ImGui::Button("Reload Shaders"))
         {
             reloadShaders();
             recreatePixelsSSBO();
         }
+#endif
 
         if (ImGui::InputFloat("Particle eMax", &particleEMax, 0, 0, "%.0f"))
         {

@@ -3,6 +3,8 @@ project(SomeParticles)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include(cmake/EmbedFile.cmake)
+
 # GLM
 find_package(glm REQUIRED)
 # GLFW3
@@ -38,3 +40,25 @@ add_executable(SomeParticles
         SomeParticles/SSBO.hpp
 )
 target_link_libraries(SomeParticles PUBLIC imgui glm::glm glfw glad GL)
+
+if (${CMAKE_BUILD_TYPE} STREQUAL "Release" OR DEFINED EMBEDDED_SHADERS)
+    target_compile_definitions(SomeParticles PRIVATE EMBEDDED_SHADERS)
+
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Embed)
+    EmbedFile(SomeParticles
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Shaders/output.vert"
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Embed/output_vert.c"
+            output_vert
+    )
+    EmbedFile(SomeParticles
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Shaders/output.frag"
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Embed/output_frag.c"
+            output_frag
+    )
+    EmbedFile(SomeParticles
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Shaders/particles.comp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Embed/particles_comp.c"
+            particles_comp
+    )
+
+endif ()
