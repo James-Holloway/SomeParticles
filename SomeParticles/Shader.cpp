@@ -51,7 +51,7 @@ std::optional<std::string> GetPathFromShaderName(const std::string &shaderName)
     return {};
 }
 
-Shader::Shader(const std::string &shaderName, const ::ShaderType shaderType) : ShaderType(shaderType)
+Shader::Shader(const std::string &shaderName, const ::ShaderType shaderType) : Type(shaderType)
 {
     auto shaderPath = GetPathFromShaderName(shaderName);
     if (!shaderPath.has_value())
@@ -88,7 +88,7 @@ Shader::Shader(const std::string &shaderName, const ::ShaderType shaderType) : S
     }
 }
 
-Shader::Shader(const ::ShaderType shaderType, const std::string &shaderString) : ShaderType(shaderType)
+Shader::Shader(const ::ShaderType shaderType, const std::string &shaderString) : Type(shaderType)
 {
     GLShader = glCreateShader(GetGLShaderType(shaderType));
 

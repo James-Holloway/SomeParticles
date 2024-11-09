@@ -41,7 +41,7 @@ add_executable(SomeParticles
 )
 target_link_libraries(SomeParticles PUBLIC imgui glm::glm glfw glad GL)
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "Release" OR DEFINED EMBEDDED_SHADERS)
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release" OR DEFINED EMBEDDED_SHADERS)
     target_compile_definitions(SomeParticles PRIVATE EMBEDDED_SHADERS)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/SomeParticles/Embed)

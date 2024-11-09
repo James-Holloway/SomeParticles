@@ -26,7 +26,7 @@ public:
     ~Shader();
     
     unsigned int GLShader = 0;
-    ShaderType ShaderType;
+    ShaderType Type;
 
     explicit operator unsigned int() const;
 };
